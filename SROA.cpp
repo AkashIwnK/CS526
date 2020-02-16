@@ -189,7 +189,7 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
 static void ExtractOffsets(AllocaInst &AI,
             DenseMap<uint64_t, SmallVector<GetElementPtrInst *, 4>> &OffsetsGEPsMap) {
     for(const auto *U : AI.users()) {
-         if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
+         if(auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
             auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
             OffsetsGEPsMap[Offset->getZExtValue()].push_back(GEP);
         }
@@ -216,7 +216,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // Now, we extract specific elements of the aggregate alloca
     // and use them separately.
     DenseMap<uint64_t, SmallVector<GetElementPtrInst *, 4>> OffsetsGEPsMap;
-    ExtractOffsets(AI, OffsetsGEPsMap);
+    ExtractOffsets(*AI, OffsetsGEPsMap);
 
     // Deal with the alloca one offset at a time
     auto *FirstInst = AI->getParent()->getFirstNonPHI();
