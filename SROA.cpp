@@ -278,7 +278,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
 
 static bool RunOnFunction(Function &F, DominatorTree &DT,
                                        AssumptionCache &AC) {
-    errs() << "RUN ON FUNCTION\n";
+    errs() << "RUN ON FUNCTION:" << F->getName() << " \n";
     // Get all allocas first
     SmallVector<AllocaInst *, 4> Worklist;
     for(auto &I : F.getEntryBlock()) {
