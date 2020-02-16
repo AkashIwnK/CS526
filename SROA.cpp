@@ -139,8 +139,10 @@ static bool isPromotable(const Instruction *I) {
                 return false;
             }
             errs() << "GEP: " << *GEP << "\n";
-            if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy())
-                isPromotable(GEP);
+            if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
+                if(!isPromotable(GEP))
+                    return false;
+            }
             continue;
         }
         //if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
