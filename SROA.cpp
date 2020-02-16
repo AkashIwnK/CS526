@@ -1,4 +1,4 @@
-//===- ScalarReplAggregates.cpp - Scalar Replacement of Aggregates --------===//
+//===--------- SROA.cpp - Scalar Replacement of Aggregates -----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,6 +20,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "scalarrepl"
+
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
@@ -302,7 +303,7 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
         errs() << "PRINTING FUNCTION BEFORE ANALYSIS: \n";
         F.print(errs());
         while(!Worklist.empty()) 
-            Change |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist, TryPromotelist);
+            Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist, TryPromotelist);
         std::vector<AllocaInst *> AllocaList;
         errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
         F.print(errs());
