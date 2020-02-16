@@ -189,9 +189,16 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
 static void ExtractOffsets(AllocaInst &AI,
             DenseMap<uint64_t, std::vector<GetElementPtrInst *>> &OffsetsGEPsMap) {
     for(const auto *U : AI.users()) {
-         if(auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
+         if(GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(U)) {
             auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
-            OffsetsGEPsMap[Offset->getZExtValue()].push_back(GEP);
+            auto &It = find(OffsetsGEPsMap, Offset->getZExtValue());
+            if(It != OffsetsGEPsMap.end()) {
+                (*It).push_back(GEP);
+            } else {
+                std::vector<GetElementPtrInst *> Vect;
+                Vect.push_back(GEP);
+                OffsetsGEPsMap[Offset->getZExtValue()] = Vect;
+            }
         }
     }
 }
