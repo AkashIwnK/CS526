@@ -260,8 +260,9 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         
         // Replace the uses of this GEP with the new Alloca
         for(auto *GEP : GEPVect) {
-            errs() << "NEW GEP: " << *GEP << "\n";
+            errs() << "OLD GEP: " << *GEP << "\n";
             GEP->replaceAllUsesWith(NewAlloca);
+            errs() << "NEW GEP: " << *GEP << "\n";
         }
 
         // Add the new alloca to the worklist
@@ -278,7 +279,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
 
 static bool RunOnFunction(Function &F, DominatorTree &DT,
                                        AssumptionCache &AC) {
-    errs() << "RUN ON FUNCTION:" << F->getName() << " \n";
+    errs() << "RUN ON FUNCTION:" << F.getName() << " \n";
     // Get all allocas first
     SmallVector<AllocaInst *, 4> Worklist;
     for(auto &I : F.getEntryBlock()) {
