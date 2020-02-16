@@ -207,6 +207,7 @@ static void ExtractOffsets(AllocaInst &AI,
 }
 
 static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist) {
+    errs() << "ANALYZING ALLOCA: " << *AI << "\n";
     // If alloca has no use, remove the useless thing.
     if(AI->use_empty()) {
         AI->eraseFromParent();
@@ -237,8 +238,10 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         // Create an alloca for element at given offset
         Type *AllocType;
         if(auto *SeqAllocType = dyn_cast<SequentialType>(AI->getAllocatedType())) {
+            errs() << "ARRAY OR VECTOR\n";
             AllocType = SeqAllocType->getElementType();
         } else {
+            errs() << "STRUCT TYPE\n";
             // Its composite type
             auto *CompAllocType = dyn_cast<CompositeType>(AI->getAllocatedType());
             assert(CompAllocType && "Alloca should be of conposite type.");
@@ -246,6 +249,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         }
         auto *NewAlloca = new AllocaInst(AllocType, 
                             AI->getType()->getAddressSpace(), "", FirstInst);
+        errs() << "NEW ALLOCA: " << *NewAlloca << "\n";
         NumReplaced++;
         
         // Replace the uses of this GEP with the new Alloca
@@ -260,12 +264,13 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     if(!OffsetsGEPsMap.empty())
         AI->replaceAllUsesWith(UndefValue::get(AI->getType()));
     AI->eraseFromParent();
-
+    errs() << "OLD ALLOCA ERASED FROM PARENT\n";
     return true;
 }
 
 static bool RunOnFunction(Function &F, DominatorTree &DT,
                                        AssumptionCache &AC) {
+    errs() << "RUN ON FUNCTION\n";
     // Get all allocas first
     SmallVector<AllocaInst *, 4> Worklist;
     for(auto &I : F.getEntryBlock()) {
