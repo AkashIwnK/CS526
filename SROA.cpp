@@ -217,7 +217,8 @@ static void ExtractOffsets(AllocaInst &AI,
     }
 }
 
-static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist) {
+static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist, 
+                            SmallVector<AllocaInst *, 4> &TryPromotelist) {
     errs() << "ANALYZING ALLOCA: " << *AI << "\n";
     // If alloca has no use, remove the useless thing.
     if(AI->use_empty()) {
@@ -228,12 +229,15 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // Skip any alloca which is not a struct or a small array
     if(!AI->getAllocatedType()->isStructTy() 
     || (AI->isArrayAllocation())) {
+        TryPromotelist.push_back(AI);
         return false;
     }
     
     // Is this alloca promotable?
-    if(!isPromotable(AI))
+    if(!isPromotable(AI)) {
+        TryPromotelist.push_back(AI);
         return false;
+    }
 
     // Now, we extract specific elements of the aggregate alloca
     // and use them separately.
@@ -293,11 +297,12 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
     }
     bool Changed = false;
     SmallVector<AllocaInst *, 4> TempWorklist;
+    SmallVector<AllocaInst *, 4> TryPromotelist;
     do {
         errs() << "PRINTING FUNCTION BEFORE ANALYSIS: \n";
         F.print(errs());
-        while(!Worklist.empty())
-            Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist);
+        while(!Worklist.empty()) 
+            Change |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist, TryPromotelist);
         std::vector<AllocaInst *> AllocaList;
         errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
         F.print(errs());
