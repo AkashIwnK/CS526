@@ -307,7 +307,8 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
         std::vector<AllocaInst *> AllocaList;
         errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
         F.print(errs());
-        for(auto *AI : TempWorklist) {
+        TryPromotelist.append(TempWorklist.begin(), TempWorklist.end());
+        for(auto *AI : TryPromotelist) {
             if(isPromotableAlloca(AI))
                 AllocaList.push_back(AI);
         }
