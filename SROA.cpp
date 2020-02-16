@@ -145,11 +145,11 @@ static bool isPromotable(const Instruction *I) {
             }
             continue;
         }
-        //if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
-          //  if(!isPromotable(BCI))
-            //    return false;
-            //continue;
-        //}
+        if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
+            if(!onlyUsedByLifetimeMarkers(BCI))
+                return false;
+            continue;
+        }
         if(const auto *II = dyn_cast<IntrinsicInst>(U)) {
             errs() << "INTRINSIC\n";
             if(!II->isLifetimeStartOrEnd())
@@ -182,11 +182,11 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
                 return false;
             continue;
         }
-        //if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
-          //  if(!isPromotable(BCI))
-            //    return false;
-            //continue;
-        //}
+        if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
+            if(!onlyUsedByLifetimeMarkers(BCI))
+                return false;
+            continue;
+        }
         if(const auto *II = dyn_cast<IntrinsicInst>(U)) {
             if(!II->isLifetimeStartOrEnd())
                 return false;
