@@ -46,10 +46,12 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/Loads.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/PtrUseVisitor.h"
 #include "llvm/Transforms/Utils/Local.h"
 
@@ -98,8 +100,8 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
     if(AllocaList.empty())
         return false;
 
-    NumPromoted += PromotableAllocas.size();
-    PromoteMemToReg(PromotableAllocas, DT, &AC);
+    NumPromoted += AllocaList.size();
+    PromoteMemToReg(AllocaList, DT, &AC);
     AllocaList.clear();
     return true;
 }
@@ -139,7 +141,7 @@ static bool isPromotable(const Instruction *I) {
     return true;
 }
 
-static bool isAllocaPromotable(const AllocaInst *AI) {
+static bool isPromotableAlloca(const AllocaInst *AI) {
    for(const auto *U : AI->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
             if(LI->isVolatile())
@@ -147,12 +149,12 @@ static bool isAllocaPromotable(const AllocaInst *AI) {
             continue;
         }
         if(const auto *SI = dyn_cast<StoreInst>(U)) {
-            if(SI->getOperand(0) == I || SI->isVolatile())
+            if(SI->getOperand(0) == AI || SI->isVolatile())
                 return false;
             continue;
         }
         if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
-            if(GEP->getType() != Type::getInt8PtrTy(U->getContext(), AI->getAddressSpace()))
+            if(GEP->getType() != Type::getInt8PtrTy(U->getContext(), AI->getType()->getAddressSpace()))
                 return false;
             if(!GEP->hasAllZeroIndices())
                 return false;
@@ -190,24 +192,26 @@ static void ExtractOffsets(AllocaInst &AI, DenseMap<uint64_t,
     for(const auto *U : AI.users()) {
          if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
             auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
-            OffsetsGEPMap[Offset->getZExtValue()].push_back(GEP);
+            OffsetsGEPsMap[Offset->getZExtValue()].push_back(GEP);
         }
     }
 }
 
 static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist) {
-    // If alloca has no use, skip it
-    if(AI->use_empty())
-        return false;
+    // If alloca has no use, remove the useless thing.
+    if(AI->use_empty()) {
+        AI->eraseFromParent();
+        return true;
+    }
 
     // Skip any alloca which is not a struct or a small array
     if(!AI->getAllocatedType()->isStructTy() 
-    || (AI->isArrayAllocation() && AI->)) {
+    || (AI->isArrayAllocation())) {
         return false;
     }
     
     // Is this alloca promotable?
-    if(!isAllocaPromotable(AI))
+    if(!isPromotable(AI))
         return false;
 
     // Now, we extract specific elements of the aggregate alloca
@@ -217,7 +221,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
 
     // Deal with the alloca one offset at a time
     auto *FirstInst = AI->getParent()->getFirstNonPHI();
-    for(auto *Entry : OffsetsGEPsMap) {
+    for(auto &Entry : OffsetsGEPsMap) {
         uint64_t Offset = Entry.first;
         auto *GEPVect = Entry.second;
         
@@ -227,7 +231,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
             AllocType = SeqAllocType->getElementType();
         } else {
             // Its composite type
-            auto *CompAllocType = dyn_cast<CompositeTypeType>(AI->getAllocatedType());
+            auto *CompAllocType = dyn_cast<CompositeType>(AI->getAllocatedType());
             assert(CompAllocType && "Alloca should be of conposite type.");
             AllocType = CompAllocType->getTypeAtIndex(Offset);
         }
@@ -266,7 +270,7 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
             Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist);
         std::vector<AllocaInst *> AllocaList;
         for(auto *AI : TempWorklist) {
-            if(isAllocaPromotable(AI))
+            if(isPromotableAlloca(AI))
                 AllocaList.push_back(AI);
         }
         Changed |= PromoteAllocas(AllocaList, F, DT, AC);
