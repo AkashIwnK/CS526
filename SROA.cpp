@@ -309,8 +309,13 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
         F.print(errs());
         TryPromotelist.append(TempWorklist.begin(), TempWorklist.end());
         for(auto *AI : TryPromotelist) {
-            if(isPromotableAlloca(AI))
+            errs() << "TRY ALLOCA: " << *AI << "\n";
+            if(isPromotableAlloca(AI)) {
                 AllocaList.push_back(AI);
+                errs() << "YES\n";
+            } else {
+                errs() << "NOT\n";
+            }
         }
         errs() << "PRINTING FUNCTION AFTER PROMOTION: \n";
         F.print(errs());
