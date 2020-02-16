@@ -19,9 +19,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "scalarrepl-akashk4"
-
-#include "llvm/IR/Type.h"
+#define DEBUG_TYPE "scalarrepl"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
@@ -40,6 +38,9 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/DenseMap.h"
@@ -58,40 +59,49 @@
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 #include <vector>
+#include <map>
 
 using namespace llvm;
 
-STATISTIC(NumReplaced,  "Number of aggregate allocas broken up");
-STATISTIC(NumPromoted,  "Number of scalar allocas promoted to register");
-
-// Define the pass
 namespace {
-    struct SROA : public FunctionPass {
-        static char ID; // Pass identification
-        SROA() : FunctionPass(ID) { }
+  struct SROA : public FunctionPass {
+    static char ID; // Pass identification
+    SROA() : FunctionPass(ID) { }
 
-        // Entry point for the overall scalar-replacement pass
-        bool runOnFunction(Function &F);
+    // Entry point for the overall scalar-replacement pass
+    bool runOnFunction(Function &F);
 
-        // getAnalysisUsage - List passes required by this pass.
-        virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-            AU.addRequired<AssumptionCacheTracker>();
-            AU.addRequired<DominatorTreeWrapperPass>();
-            AU.setPreservesCFG();
-        }
-    };
+    // getAnalysisUsage - List passes required by this pass.  We also know it
+    // will not alter the CFG, so say so.
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+        AU.addRequired<AssumptionCacheTracker>();
+     AU.addRequired<DominatorTreeWrapperPass>();
+	AU.setPreservesCFG();
+    }
+  };
 }
 
-// Register the pass
 char SROA::ID = 0;
 static RegisterPass<SROA> X("scalarrepl-akashk4",
-			    "Scalar Replacement of Aggregates (by <akashk4>)",
+			    "Scalar Replacement of Aggregates (by akashk4)",
 			    false /* does not modify the CFG */,
 			    false /* transformation, not just analysis */);
 
+
 // Public interface to create the ScalarReplAggregates pass.
+// This function is provided to you.
 FunctionPass *createMyScalarReplAggregatesPass() { return new SROA(); }
 
+//INITIALIZE_PASS_BEGIN(SROA, "scalarrepl-akashk4",
+//                       "Scalar Replacement Of Aggregates", false, false)
+// INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
+// INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+ //INITIALIZE_PASS_END(SROA, "scalarrepl-akashk4", "Scalar Replacement Of Aggregates",
+   //                  false, false)
+
+
+STATISTIC(NumReplaced,  "Number of aggregate allocas broken up");
+STATISTIC(NumPromoted,  "Number of scalar allocas promoted to register");
 
 // Invoke the Mem2reg pass
 static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F, 
@@ -187,18 +197,11 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
 
 // Extracts offsets
 static void ExtractOffsets(AllocaInst &AI,
-            DenseMap<uint64_t, std::vector<GetElementPtrInst *>> &OffsetsGEPsMap) {
+            std::map<uint64_t, std::vector<GetElementPtrInst *>> &OffsetsGEPsMap) {
     for(const auto *U : AI.users()) {
-         if(GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(U)) {
+         if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
             auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
-            auto &It = find(OffsetsGEPsMap, Offset->getZExtValue());
-            if(It != OffsetsGEPsMap.end()) {
-                (*It).push_back(GEP);
-            } else {
-                std::vector<GetElementPtrInst *> Vect;
-                Vect.push_back(GEP);
-                OffsetsGEPsMap[Offset->getZExtValue()] = Vect;
-            }
+            OffsetsGEPsMap[Offset->getZExtValue()].push_back(const_cast<GetElementPtrInst *>(GEP));
         }
     }
 }
@@ -222,7 +225,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
 
     // Now, we extract specific elements of the aggregate alloca
     // and use them separately.
-    DenseMap<uint64_t, std::vector<GetElementPtrInst *>> OffsetsGEPsMap;
+    std::map<uint64_t, std::vector<GetElementPtrInst *>> OffsetsGEPsMap;
     ExtractOffsets(*AI, OffsetsGEPsMap);
 
     // Deal with the alloca one offset at a time
