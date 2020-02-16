@@ -118,21 +118,27 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
 static bool isPromotable(const Instruction *I) {
      for(const auto *U : I->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
+            errs() << "--LOAD: " << *LI << "\n";
             if(LI->isVolatile())
                 return false;
+            errs() << "LOAD: " << *LI << "\n";
             continue;
         }
         if(const auto *SI = dyn_cast<StoreInst>(U)) {
+            errs() << "--STORE: " << *SI << "\n";
             if(SI->getOperand(0) == I || SI->isVolatile())
                 return false;
+            errs() << "STORE: " << *SI << "\n";
             continue;
         }
         if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
+            errs() << "--GEP: " << *GEP << "\n";
             // All indices should be constants
             if(!isa<ConstantInt>(GEP->getOperand(1)) 
             || !isa<ConstantInt>(GEP->getOperand(2))) {
                 return false;
-            }   
+            }
+            errs() << "GEP: " << *GEP << "\n";
             continue;
         }
         //if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
