@@ -186,7 +186,7 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
 //}
 
 // Extracts offsets
-static void ExtractOffsets(AllocaInst &AI, DenseMap<uint64_t, 
+static void ExtractOffsets(AllocaInst &AI,
             DenseMap<uint64_t, SmallVector<GetElementPtrInst *, 4>> &OffsetsGEPsMap) {
     for(const auto *U : AI.users()) {
          if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
