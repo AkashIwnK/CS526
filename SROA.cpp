@@ -19,6 +19,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "scalarrepl-akashk4"
 
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
@@ -54,8 +55,6 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/PtrUseVisitor.h"
 #include "llvm/Transforms/Utils/Local.h"
-
-
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 #include <vector>
@@ -223,7 +222,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     auto *FirstInst = AI->getParent()->getFirstNonPHI();
     for(auto &Entry : OffsetsGEPsMap) {
         uint64_t Offset = Entry.first;
-        auto *GEPVect = Entry.second;
+        auto &GEPVect = Entry.second;
         
         // Create an alloca for element at given offset
         Type *AllocType;
@@ -260,7 +259,7 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
     // Get all allocas first
     SmallVector<AllocaInst *, 4> Worklist;
     for(auto &I : F.getEntryBlock()) {
-        if(auto *AI = dyn_cast<AllocaInst>(I))
+        if(auto *AI = dyn_cast<AllocaInst>(&I))
             Worklist.push_back(AI);
     }
     bool Changed = false;
