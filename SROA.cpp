@@ -289,13 +289,19 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
     bool Changed = false;
     SmallVector<AllocaInst *, 4> TempWorklist;
     do {
+        errs() << "PRINTING FUNCTION BEFORE ANALYSIS: \n";
+        F.print(errs());
         while(!Worklist.empty())
             Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist);
         std::vector<AllocaInst *> AllocaList;
+        errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
+        F.print(errs());
         for(auto *AI : TempWorklist) {
             if(isPromotableAlloca(AI))
                 AllocaList.push_back(AI);
         }
+        errs() << "PRINTING FUNCTION AFTER PROMOTION: \n";
+        F.print(errs());
         Changed |= PromoteAllocas(AllocaList, F, DT, AC);
         Worklist = TempWorklist;
         TempWorklist.clear();
