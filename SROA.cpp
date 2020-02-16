@@ -149,6 +149,7 @@ static bool isPromotable(const Instruction *I) {
             //continue;
         //}
         if(const auto *II = dyn_cast<IntrinsicInst>(U)) {
+            errs() << "INTRINSIC\n";
             if(!II->isLifetimeStartOrEnd())
                 return false;
             continue;
