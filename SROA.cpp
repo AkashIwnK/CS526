@@ -36,9 +36,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
@@ -46,6 +43,9 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Debug.h"
@@ -106,7 +106,7 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
 }
 
 // Perfoms some analysis as to whether SROA should be performed on an alloca.
-static bool isPromotable(const Instruction *I) {
+static bool isPromotable(const Instruction *I, SmallVector<BitCastAlloca, 4> &BitCastAlloca) {
      for(const auto *U : I->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
             errs() << "--LOAD: " << *LI << "\n";
@@ -145,8 +145,20 @@ static bool isPromotable(const Instruction *I) {
             continue;
         }
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
+            if(auto *AI = dyn_cast<AllocaInst>(I)) {
+            // There are conditions that have to be met.
+            // This only works for arrays and vectors.
+                if(isa<SequentialType>(AI->getAllocatedType()) {
+                    const DataLayout &DL = AI->getModule()->getDataLayout();
+                    if(DL.getTypeAllocSize(BCI->getDestTy()) 
+                        == DL.getTypeAllocSize(BCI->getSrcTy())) {
+                         BitCastAlloca.push_back(BCI);
+                    }
+                }
+            }
+            
             // Bit cast usually complicates things here, so
-            // we just deal with this simple case and chicken out. 
+            // we just deal with this simple case and chicken out.
             if(!onlyUsedByLifetimeMarkers(BCI))
                 return false;
             continue;
@@ -213,22 +225,21 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
     return true;
 }
 
-// This split the GEPs with more than 2 indices into multiple GEPs with 2 indices.
-//static void SplitGEPs(AllocaInst &AI) {
- //   for(const auto *U : AI.users()) {
- //       if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
-  //          if(GEP->)
-  //      }
-  //  }
-//}
-
 // Extracts offsets
-static void ExtractOffsets(AllocaInst &AI,
+static void ExtractOffsets(AllocaInst &AI, SmallVector<BitCastAlloca, 4> &BitCastAlloca,
             std::map<uint64_t, std::vector<GetElementPtrInst *>> &OffsetsGEPsMap) {
     for(const auto *U : AI.users()) {
          if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
             auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
             OffsetsGEPsMap[Offset->getZExtValue()].push_back(const_cast<GetElementPtrInst *>(GEP));
+        }
+    }
+    for(auto *BitCast : ValueToAllocaMapping) {
+        for(const auto *U : BitCast) {
+            if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
+                auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
+                OffsetsGEPsMap[Offset->getZExtValue()].push_back(const_cast<GetElementPtrInst *>(GEP));
+            }
         }
     }
 }
@@ -267,7 +278,8 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     }
 
     // Is this alloca promotable?
-    if(!isPromotable(AI)) {
+    SmallVector<BitCastAlloca, 4> BitCastAlloca;
+    if(!isPromotable(AI, BitCastAlloca)) {
         errs() << "ALLOCA CANNOT SROA\n";
         TryPromotelist.push_back(AI);
         return false;
@@ -276,13 +288,13 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // Now, we extract specific elements of the aggregate alloca
     // and use them separately.
     std::map<uint64_t, std::vector<GetElementPtrInst *>> OffsetsGEPsMap;
-    ExtractOffsets(*AI, OffsetsGEPsMap);
+    ExtractOffsets(*AI, BitCastAlloca, OffsetsGEPsMap);
     errs() << "OFFSETS EXTRACTED\n";
 
     // Deal with the alloca one offset at a time. Offsets that we do not
     // deal with here are useless anyway. So this pass is justified in 
     // removing those values.
-    auto *FirstInst = AI->getParent()->getFirstNonPHI();
+    //auto *FirstInst = AI->getParent()->getFirstNonPHI();
     for(auto &Entry : OffsetsGEPsMap) {
         uint64_t Offset = Entry.first;
         errs()  << "CONSIDERING OFFSET: " << Offset << "\n";
@@ -301,14 +313,24 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
             AllocType = CompAllocType->getTypeAtIndex(Offset);
         }
         auto *NewAlloca = new AllocaInst(AllocType, 
-                            AI->getType()->getAddressSpace(), "", FirstInst);
+                            AI->getType()->getAddressSpace(), "", AI);
         errs() << "NEW ALLOCA: " << *NewAlloca << "\n";
         NumReplaced++;
         
         // Replace the uses of this GEP with the new Alloca
+        DenseMap<Type *, Instruction *> TypeToBitCastMap;
         for(auto *GEP : GEPVect) {
             errs() << "CONSIDERED GEP: " << *GEP << "\n";
-            GEP->replaceAllUsesWith(NewAlloca);
+            auto *GEPTy = GEP->getPointerOperand()->getType();
+            if(GEP->getPointerOperand() != AI) {
+                if(find(TypeToBitCastMap, GEPTy) == TypeToBitCastMap.end()) {
+                    // Create a Bitcast right above old alloca
+                    TypeToBitCastMap[GEPTy] = new BitCastInst(NewAlloca, GEP->getType(), "", AI);
+                } 
+                GEP->replaceAllUsesWith(TypeToBitCastMap[GEPTy]);
+            } else {
+                GEP->replaceAllUsesWith(NewAlloca);
+            }
         }
 
         // Add the new alloca to the worklist
