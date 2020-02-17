@@ -321,7 +321,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         std::map<Type *, Instruction *> TypeToBitCastMap;
         for(auto *GEP : GEPVect) {
             errs() << "CONSIDERED GEP: " << *GEP << "\n";
-            auto *GEPTy = GEP->getPointerOperand()->getType();
+            Type *GEPTy = GEP->getPointerOperand()->getType();
             if(GEP->getPointerOperand() != AI) {
                 if(std::find(TypeToBitCastMap.begin(), TypeToBitCastMap.end(), GEPTy) == TypeToBitCastMap.end()) {
                     // Create a Bitcast right above old alloca
