@@ -147,9 +147,9 @@ static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &Bi
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
             if(auto *AI = dyn_cast<AllocaInst>(I)) {
                 errs() << "ALLOCA LEVEL\n";
-            // There are conditions that have to be met.
-            // This only works for arrays and vectors.
-                if(isa<SequentialType>(AI->getAllocatedType())) {
+                // There are conditions that have to be met.
+                // This only works for arrays and vectors.
+                //if(isa<SequentialType>(AI->getAllocatedType())) {
                     errs() << "ALLOCA TYPE LEVEL\n";
                     const DataLayout &DL = AI->getModule()->getDataLayout();
                     if(DL.getTypeAllocSize(BCI->getDestTy())
@@ -157,7 +157,7 @@ static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &Bi
                         errs() << "ALLOCA DATA LAYOUT LEVEL\n";
                         BitCastAlloca.push_back(const_cast<BitCastInst *>(BCI));
                     }
-                }
+                //}
             }
             
             // Bit cast usually complicates things here, so
