@@ -316,9 +316,10 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     }
 
     // Invalidate and remove the old alloca
-    if(!OffsetsGEPsMap.empty())
+    if(!OffsetsGEPsMap.empty()) {
         AI->replaceAllUsesWith(UndefValue::get(AI->getType()));
-    AI->eraseFromParent();
+        AI->eraseFromParent();
+    }
     errs() << "OLD ALLOCA ERASED FROM PARENT\n";
     return true;
 }
