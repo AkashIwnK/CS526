@@ -105,6 +105,7 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
     return true;
 }
 
+// Perfoms some analysis as to whether SROA should be performed on an alloca.
 static bool isPromotable(const Instruction *I) {
      for(const auto *U : I->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
@@ -129,10 +130,17 @@ static bool isPromotable(const Instruction *I) {
                 return false;
             }
             errs() << "GEP: " << *GEP << "\n";
-            if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
+            if(!isa<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
                 if(!isPromotable(GEP))
                     return false;
             }
+            continue;
+        }
+
+         // Some leeway in comparison instructions for getelement ptrs
+        if(auto *ICmp = dyn_cast<BinaryOperator>()) {
+            if(!isa<GetElementPtrInst>(I))
+                return false;
             continue;
         }
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
@@ -153,6 +161,7 @@ static bool isPromotable(const Instruction *I) {
     return true;
 }
 
+// This checks if alloca should be promoted to memory.
 static bool isPromotableAlloca(const AllocaInst *AI) {
     // Assess the types first
     auto *AITy = AI->getType();
@@ -183,7 +192,7 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
             // as we are willing to tolerate.
             if(!onlyUsedByLifetimeMarkers(GEP))
                 return false;
-            
+
             continue;
         }
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
