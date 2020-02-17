@@ -44,7 +44,6 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -101,7 +100,6 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
                             DominatorTree &DT, AssumptionCache &AC) {
     if(AllocaList.empty())
         return false;
-
     NumPromoted += AllocaList.size();
     PromoteMemToReg(AllocaList, DT, &AC);
     return true;
@@ -138,6 +136,8 @@ static bool isPromotable(const Instruction *I) {
             continue;
         }
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
+            // Bit cast usually complicates things here, so
+            // we just deal with this simple case and chicken out. 
             if(!onlyUsedByLifetimeMarkers(BCI))
                 return false;
             continue;
@@ -154,6 +154,12 @@ static bool isPromotable(const Instruction *I) {
 }
 
 static bool isPromotableAlloca(const AllocaInst *AI) {
+    // Assess the types first
+    auto *AITy = AI->getType();
+    if(AITy != isIntOrIntVectorTy() && AITy != isFPOrFPVectorTy() && AITy != isPtrOrPtrVectorTy()) {
+        return false;
+    }
+
    for(const auto *U : AI->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
             if(LI->isVolatile())
@@ -168,13 +174,21 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
         if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
             if(GEP->getType() != Type::getInt8PtrTy(U->getContext(), AI->getType()->getAddressSpace()))
                 return false;
+
+            // Cannot expect non-zero indices anywhere. If there are any, its not promotable.
             if(!GEP->hasAllZeroIndices())
                 return false;
+            
+            // The result of this used in lifetime instrinsics is as far
+            // as we are willing to tolerate.
             if(!onlyUsedByLifetimeMarkers(GEP))
                 return false;
+            
             continue;
         }
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
+            // Bit cast usually complicates things here, so
+            // we just deal with this simple case and chicken out. 
             if(!onlyUsedByLifetimeMarkers(BCI))
                 return false;
             continue;
@@ -219,12 +233,24 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     }
 
     // Skip any alloca which is not a struct or a small array
-    if(!AI->getAllocatedType()->isStructTy() 
-    || (AI->isArrayAllocation() )) {
+    if(!AI->getAllocatedType()->isStructTy() || !AI->isArrayAllocation()) {
         TryPromotelist.push_back(AI);
         return false;
     }
-    
+
+    // If the size of array or vector is more than 5, abort mission.
+    if(auto *SeqTy = dyn_cast<SequentialType>(AI->getAllocatedType())) {
+        if(SeqTy->getNumElements() > 5)
+            return false;
+    }
+
+    // We can deal with small arrays, but not zero size.
+    const DataLayout &DL = AI.getModule()->getDataLayout();
+    if(!DL.getTypeAllocSize(AI.getAllocatedType())) {
+        TryPromotelist.push_back(AI);
+        return false;
+    }
+
     // Is this alloca promotable?
     if(!isPromotable(AI)) {
         TryPromotelist.push_back(AI);
@@ -283,12 +309,14 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
 static bool RunOnFunction(Function &F, DominatorTree &DT,
                                        AssumptionCache &AC) {
     errs() << "RUN ON FUNCTION:" << F.getName() << " \n";
+
     // Get all allocas first
     SmallVector<AllocaInst *, 4> Worklist;
     for(auto &I : F.getEntryBlock()) {
         if(auto *AI = dyn_cast<AllocaInst>(&I))
             Worklist.push_back(AI);
     }
+
     bool Changed = false;
     SmallVector<AllocaInst *, 4> TempWorklist;
     do {
