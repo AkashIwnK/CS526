@@ -276,6 +276,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // and use them separately.
     std::map<uint64_t, std::vector<GetElementPtrInst *>> OffsetsGEPsMap;
     ExtractOffsets(*AI, OffsetsGEPsMap);
+    errs() << "OFFSETS EXTRACTED\n";
 
     // Deal with the alloca one offset at a time. Offsets that we do not
     // deal with here are useless anyway. So this pass is justified in 
