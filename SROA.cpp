@@ -93,14 +93,6 @@ static RegisterPass<SROA> X("scalarrepl-akashk4",
 // This function is provided to you.
 FunctionPass *createMyScalarReplAggregatesPass() { return new SROA(); }
 
-//INITIALIZE_PASS_BEGIN(SROA, "scalarrepl-akashk4",
-//                       "Scalar Replacement Of Aggregates", false, false)
-// INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
-// INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
- //INITIALIZE_PASS_END(SROA, "scalarrepl-akashk4", "Scalar Replacement Of Aggregates",
-   //                  false, false)
-
-
 STATISTIC(NumReplaced,  "Number of aggregate allocas broken up");
 STATISTIC(NumPromoted,  "Number of scalar allocas promoted to register");
 
@@ -248,6 +240,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     auto *FirstInst = AI->getParent()->getFirstNonPHI();
     for(auto &Entry : OffsetsGEPsMap) {
         uint64_t Offset = Entry.first;
+        errs()  << "CONSIDERING OFFSET: " << Offset << "\n";
         auto &GEPVect = Entry.second;
         
         // Create an alloca for element at given offset
@@ -269,9 +262,8 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         
         // Replace the uses of this GEP with the new Alloca
         for(auto *GEP : GEPVect) {
-            errs() << "OLD GEP: " << *GEP << "\n";
+            errs() << "CONSIDERED GEP: " << *GEP << "\n";
             GEP->replaceAllUsesWith(NewAlloca);
-            errs() << "NEW GEP: " << *GEP << "\n";
         }
 
         // Add the new alloca to the worklist
@@ -297,10 +289,10 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
     }
     bool Changed = false;
     SmallVector<AllocaInst *, 4> TempWorklist;
-    SmallVector<AllocaInst *, 4> TryPromotelist;
     do {
         errs() << "PRINTING FUNCTION BEFORE ANALYSIS: \n";
         F.print(errs());
+        SmallVector<AllocaInst *, 4> TryPromotelist;
         while(!Worklist.empty()) 
             Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist, TryPromotelist);
         errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
