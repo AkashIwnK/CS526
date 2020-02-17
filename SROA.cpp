@@ -130,7 +130,7 @@ static bool isPromotable(const Instruction *I) {
                 return false;
             }
             errs() << "GEP: " << *GEP << "\n";
-            if(!isa<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
+            if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
                 if(!isPromotable(GEP))
                     return false;
             }
