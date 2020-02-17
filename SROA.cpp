@@ -112,7 +112,6 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
 
     NumPromoted += AllocaList.size();
     PromoteMemToReg(AllocaList, DT, &AC);
-    AllocaList.clear();
     return true;
 }
 
@@ -304,10 +303,10 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
         F.print(errs());
         while(!Worklist.empty()) 
             Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist, TryPromotelist);
-        std::vector<AllocaInst *> AllocaList;
         errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
         F.print(errs());
         TryPromotelist.append(TempWorklist.begin(), TempWorklist.end());
+        std::vector<AllocaInst *> AllocaList;
         for(auto *AI : TryPromotelist) {
             errs() << "TRY ALLOCA: " << *AI << "\n";
             if(isPromotableAlloca(AI)) {
@@ -317,9 +316,15 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
                 errs() << "NOT\n";
             }
         }
+        Changed |= PromoteAllocas(AllocaList, F, DT, AC);
         errs() << "PRINTING FUNCTION AFTER PROMOTION: \n";
         F.print(errs());
-        Changed |= PromoteAllocas(AllocaList, F, DT, AC);
+        for(auto *AI : AllocaList) {
+            auto It = find(TempWorklist, AI);
+            if(It == TempWorklist.end()) {
+                continue;
+            TempWorklist.erase(It);
+        }
         Worklist = TempWorklist;
         TempWorklist.clear();
     } while(!Worklist.empty());
