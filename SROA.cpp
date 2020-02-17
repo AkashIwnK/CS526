@@ -220,7 +220,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
 
     // Skip any alloca which is not a struct or a small array
     if(!AI->getAllocatedType()->isStructTy() 
-    || (AI->isArrayAllocation())) {
+    || (AI->isArrayAllocation() )) {
         TryPromotelist.push_back(AI);
         return false;
     }
@@ -236,7 +236,9 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     std::map<uint64_t, std::vector<GetElementPtrInst *>> OffsetsGEPsMap;
     ExtractOffsets(*AI, OffsetsGEPsMap);
 
-    // Deal with the alloca one offset at a time
+    // Deal with the alloca one offset at a time. Offsets that we do not
+    // deal with here are useless anyway. So this pass is justified in 
+    // removing those values.
     auto *FirstInst = AI->getParent()->getFirstNonPHI();
     for(auto &Entry : OffsetsGEPsMap) {
         uint64_t Offset = Entry.first;
