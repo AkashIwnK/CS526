@@ -106,7 +106,7 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
 }
 
 // Perfoms some analysis as to whether SROA should be performed on an alloca.
-static bool isPromotable(const Instruction *I, SmallVector<BitCastAlloca, 4> &BitCastAlloca) {
+static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &BitCastAlloca) {
      for(const auto *U : I->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
             errs() << "--LOAD: " << *LI << "\n";
@@ -131,7 +131,7 @@ static bool isPromotable(const Instruction *I, SmallVector<BitCastAlloca, 4> &Bi
             }
             errs() << "GEP: " << *GEP << "\n";
             if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
-                if(!isPromotable(GEP))
+                if(!isPromotable(GEP, itCastAlloca))
                     return false;
             }
             continue;
@@ -226,7 +226,7 @@ static bool isPromotableAlloca(const AllocaInst *AI) {
 }
 
 // Extracts offsets
-static void ExtractOffsets(AllocaInst &AI, SmallVector<BitCastAlloca, 4> &BitCastAlloca,
+static void ExtractOffsets(AllocaInst &AI, SmallVector<Instruction *, 4> &BitCastAlloca,
             std::map<uint64_t, std::vector<GetElementPtrInst *>> &OffsetsGEPsMap) {
     for(const auto *U : AI.users()) {
          if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
@@ -278,7 +278,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     }
 
     // Is this alloca promotable?
-    SmallVector<BitCastAlloca, 4> BitCastAlloca;
+    SmallVector<Instruction *, 4> BitCastAlloca;
     if(!isPromotable(AI, BitCastAlloca)) {
         errs() << "ALLOCA CANNOT SROA\n";
         TryPromotelist.push_back(AI);
