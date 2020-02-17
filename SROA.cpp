@@ -152,7 +152,7 @@ static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &Bi
                     const DataLayout &DL = AI->getModule()->getDataLayout();
                     if(DL.getTypeAllocSize(BCI->getDestTy()) 
                         == DL.getTypeAllocSize(BCI->getSrcTy())) {
-                         BitCastAlloca.push_back(BCI);
+                         BitCastAlloca.push_back(const_cast<BitCastInst *>(BCI));
                     }
                 }
             }
@@ -234,7 +234,7 @@ static void ExtractOffsets(AllocaInst &AI, SmallVector<Instruction *, 4> &BitCas
             OffsetsGEPsMap[Offset->getZExtValue()].push_back(const_cast<GetElementPtrInst *>(GEP));
         }
     }
-    for(auto *BitCast : ValueToAllocaMapping) {
+    for(auto *BitCast : BitCastAlloca) {
         for(const auto *U : BitCast) {
             if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
                 auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
