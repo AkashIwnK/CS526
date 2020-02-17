@@ -7,10 +7,9 @@ struct ST {
     int q;
 };
 int main () {
-    struct ST st;
-    struct RT rt;
-    st.p = ((struct ST *)(&rt)->u);
+    struct ST *st;
+    struct RT *rt;
+    *st = (*(struct ST*)rt);
     
     return 0;
 }
-

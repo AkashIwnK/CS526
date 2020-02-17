@@ -1,15 +1,15 @@
 struct RT {
     int v;
+    int u;
 };
-​
 struct ST {
-    struct RT *p;
+    int p;
+    int q;
 };
-​
 int main () {
     struct ST st;
     struct RT rt;
-    st.p = &rt;
-​
+    st.p = 2;
+    rt.v = 3;
     return 0;
 }

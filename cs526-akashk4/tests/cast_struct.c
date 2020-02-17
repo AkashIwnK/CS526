@@ -3,14 +3,13 @@ struct RT {
     int u;
 };
 struct ST {
-    int p;
-    int q;
+    float *p;
+    float *q;
 };
 int main () {
     struct ST st;
     struct RT rt;
-    st.p = ((struct ST *)(&rt)->u);
-    
+    st.p = (float *)&rt.v;
+    st.q = (float *)&rt.u;
     return 0;
 }
-
