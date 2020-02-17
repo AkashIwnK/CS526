@@ -319,6 +319,8 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     if(!OffsetsGEPsMap.empty()) {
         AI->replaceAllUsesWith(UndefValue::get(AI->getType()));
         AI->eraseFromParent();
+    } else {
+        TryPromotelist.push_back(AI);
     }
     errs() << "OLD ALLOCA ERASED FROM PARENT\n";
     return true;
