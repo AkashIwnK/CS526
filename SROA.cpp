@@ -137,8 +137,9 @@ static bool isPromotable(const Instruction *I) {
             continue;
         }
 
-         // Some leeway in comparison instructions for getelement ptrs
-        if(auto *ICmp = dyn_cast<BinaryOperator>()) {
+         // Some leeway in comparison instructions for getelement ptrs.
+         // Safe to be conservative here. Looks like a very rare case.
+        if(isa<ICmpInst>(U)) {
             if(!isa<GetElementPtrInst>(I))
                 return false;
             continue;
