@@ -242,27 +242,32 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         return true;
     }
 
-    // Skip any alloca which is not a struct or a small array
+    // Skip any alloca which is not a struct or an array
     if(!AI->getAllocatedType()->isStructTy() || !AI->isArrayAllocation()) {
+        errs() << "NOT AN ARRAY NOR STRUCT\n";
         TryPromotelist.push_back(AI);
         return false;
     }
 
     // If the size of array or vector is more than 5, abort mission.
     if(auto *SeqTy = dyn_cast<SequentialType>(AI->getAllocatedType())) {
-        if(SeqTy->getNumElements() > 5)
+        if(SeqTy->getNumElements() > 5) {
+            errs() << "ARRAY/VECTOR TOO BIG\n";
             return false;
+        }
     }
 
     // We can deal with small arrays, but not zero size.
     const DataLayout &DL = AI->getModule()->getDataLayout();
     if(!DL.getTypeAllocSize(AI->getAllocatedType())) {
+        errs() << "DATA LAYOUT ABORT\n";
         TryPromotelist.push_back(AI);
         return false;
     }
 
     // Is this alloca promotable?
     if(!isPromotable(AI)) {
+        errs() << "ALLOCA CANNOT SROA\n";
         TryPromotelist.push_back(AI);
         return false;
     }
