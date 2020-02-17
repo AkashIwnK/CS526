@@ -243,8 +243,8 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     }
 
     // Skip any alloca which is not a struct or an array
-    if(!AI->getAllocatedType()->isStructTy() && !AI->isArrayAllocation()) {
-    //if(!isa<CompositeType>(AI->getAllocatedType()) && !isa<SequentialType>(AI->getAllocatedType())) {
+    //if(!AI->getAllocatedType()->isStructTy() && !AI->isArrayAllocation()) {
+    if(!isa<CompositeType>(AI->getAllocatedType()) && !isa<SequentialType>(AI->getAllocatedType())) {
         errs() << "NOT AN ARRAY NOR STRUCT\n";
         TryPromotelist.push_back(AI);
         return false;
