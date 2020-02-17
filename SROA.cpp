@@ -318,16 +318,24 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         NumReplaced++;
         
         // Replace the uses of this GEP with the new Alloca
-        std::map<Type *, Instruction *> TypeToBitCastMap;
+       std::vector<Instruction *> BitCastVect;
         for(auto *GEP : GEPVect) {
             errs() << "CONSIDERED GEP: " << *GEP << "\n";
-            Type *GEPTy = GEP->getPointerOperand()->getType();
+            auto *GEPTy = GEP->getPointerOperand()->getType();
             if(GEP->getPointerOperand() != AI) {
-                if(std::find(TypeToBitCastMap.begin(), TypeToBitCastMap.end(), GEPTy) == TypeToBitCastMap.end()) {
+                BitCast *BI = nullptr;
+                for(auto *BCI : BitCastVect) {
+                    if(BCI->getType() == GEPTy) {
+                        GEP->replaceAllUsesWith(TypeToBitCastMap[BCI]);
+                        BI = BCI;
+                        break;
+                    }
+                }
+                if(!BI) {
                     // Create a Bitcast right above old alloca
-                    TypeToBitCastMap[GEPTy] = new BitCastInst(NewAlloca, GEP->getType(), "", AI);
-                } 
-                GEP->replaceAllUsesWith(TypeToBitCastMap[GEPTy]);
+                     BI = new BitCastInst(NewAlloca, GEP->getType(), "", AI);
+                     GEP->replaceAllUsesWith(TypeToBitCastMap[BI]);
+                }
             } else {
                 GEP->replaceAllUsesWith(NewAlloca);
             }
