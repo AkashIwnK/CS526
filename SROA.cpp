@@ -318,7 +318,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
         NumReplaced++;
         
         // Replace the uses of this GEP with the new Alloca
-        DenseMap<Type *, Instruction *> TypeToBitCastMap;
+        std::map<Type *, Instruction *> TypeToBitCastMap;
         for(auto *GEP : GEPVect) {
             errs() << "CONSIDERED GEP: " << *GEP << "\n";
             auto *GEPTy = GEP->getPointerOperand()->getType();
