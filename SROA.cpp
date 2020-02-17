@@ -156,7 +156,7 @@ static bool isPromotable(const Instruction *I) {
 static bool isPromotableAlloca(const AllocaInst *AI) {
     // Assess the types first
     auto *AITy = AI->getType();
-    if(AITy != isIntOrIntVectorTy() && AITy != isFPOrFPVectorTy() && AITy != isPtrOrPtrVectorTy()) {
+    if(!AITy->isIntOrIntVectorTy() && !AITy->isFPOrFPVectorTy() && !AITy->isPtrOrPtrVectorTy()) {
         return false;
     }
 
