@@ -245,8 +245,8 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     }
 
     // We can deal with small arrays, but not zero size.
-    const DataLayout &DL = AI.getModule()->getDataLayout();
-    if(!DL.getTypeAllocSize(AI.getAllocatedType())) {
+    const DataLayout &DL = AI->getModule()->getDataLayout();
+    if(!DL.getTypeAllocSize(AI->getAllocatedType())) {
         TryPromotelist.push_back(AI);
         return false;
     }
