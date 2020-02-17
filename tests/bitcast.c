@@ -9,6 +9,7 @@ struct ST {
 int main () {
     struct ST *st;
     struct RT *rt;
-    *st = rt;
+    *st = (*(struct ST*)rt);
+    
     return 0;
 }

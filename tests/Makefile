@@ -17,8 +17,10 @@ LL_FILES = $(SOURCES:%.c=%.ll)
 .PHONY = all
 
 all: $(LL_FILES)
-	opt -load SROA.so -scalarrepl-akashk4 -dce -verify $< -o done.ll
+
+#LL_FILES: %.ll
 
 %.ll: %.c
 	$(CC) -emit-llvm -o $@ -c $< -w  $(CC_FLAGS)
+	opt -load SROA.so -scalarrepl-akashk4 -dce -verify $@ -o done.ll
 
