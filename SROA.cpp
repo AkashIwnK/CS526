@@ -131,7 +131,7 @@ static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &Bi
             }
             errs() << "GEP: " << *GEP << "\n";
             if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
-                if(!isPromotable(GEP, itCastAlloca))
+                if(!isPromotable(GEP, BitCastAlloca))
                     return false;
             }
             continue;
@@ -148,7 +148,7 @@ static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &Bi
             if(auto *AI = dyn_cast<AllocaInst>(I)) {
             // There are conditions that have to be met.
             // This only works for arrays and vectors.
-                if(isa<SequentialType>(AI->getAllocatedType()) {
+                if(isa<SequentialType>(AI->getAllocatedType())) {
                     const DataLayout &DL = AI->getModule()->getDataLayout();
                     if(DL.getTypeAllocSize(BCI->getDestTy()) 
                         == DL.getTypeAllocSize(BCI->getSrcTy())) {
