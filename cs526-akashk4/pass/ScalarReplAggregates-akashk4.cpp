@@ -109,27 +109,21 @@ static  bool PromoteAllocas(std::vector<AllocaInst *> &AllocaList, Function &F,
 static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &BitCastAlloca) {
      for(const auto *U : I->users()) {
         if(const auto *LI = dyn_cast<LoadInst>(U)) {
-            errs() << "--LOAD: " << *LI << "\n";
             if(LI->isVolatile())
                 return false;
-            errs() << "LOAD: " << *LI << "\n";
             continue;
         }
         if(const auto *SI = dyn_cast<StoreInst>(U)) {
-            errs() << "--STORE: " << *SI << "\n";
             if(SI->getOperand(0) == I || SI->isVolatile())
                 return false;
-            errs() << "STORE: " << *SI << "\n";
             continue;
         }
         if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
-            errs() << "--GEP: " << *GEP << "\n";
             // All indices should be constants
             if(!isa<ConstantInt>(GEP->getOperand(1)) 
             || !isa<ConstantInt>(GEP->getOperand(2))) {
                 return false;
             }
-            errs() << "GEP: " << *GEP << "\n";
             if(!dyn_cast<PointerType>(GEP->getType())->getElementType()->isPointerTy()) {
                 if(!isPromotable(GEP, BitCastAlloca))
                     return false;
@@ -146,15 +140,12 @@ static bool isPromotable(const Instruction *I, SmallVector<Instruction *, 4> &Bi
         }
         if(const auto *BCI = dyn_cast<BitCastInst>(U)) {
             if(auto *AI = dyn_cast<AllocaInst>(I)) {
-                errs() << "ALLOCA LEVEL\n";
                 // There are conditions that have to be met.
                 // This only works for arrays and vectors.
                 //if(isa<SequentialType>(AI->getAllocatedType())) {
-                    errs() << "ALLOCA TYPE LEVEL\n";
                     const DataLayout &DL = AI->getModule()->getDataLayout();
                     if(DL.getTypeAllocSize(BCI->getDestTy())
                         == DL.getTypeAllocSize(BCI->getSrcTy())) {
-                        errs() << "ALLOCA DATA LAYOUT LEVEL\n";
                         BitCastAlloca.push_back(const_cast<BitCastInst *>(BCI));
                     }
                 //}
@@ -249,7 +240,6 @@ static void ExtractOffsets(AllocaInst &AI, SmallVector<Instruction *, 4> &BitCas
 
 static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist, 
                             SmallVector<AllocaInst *, 4> &TryPromotelist) {
-    errs() << "ANALYZING ALLOCA: " << *AI << "\n";
     // If alloca has no use, remove the useless thing.
     if(AI->use_empty()) {
         AI->eraseFromParent();
@@ -259,7 +249,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // Skip any alloca which is not a struct or an array
     //if(!AI->getAllocatedType()->isStructTy() && !AI->isArrayAllocation()) {
     if(!isa<CompositeType>(AI->getAllocatedType()) && !isa<SequentialType>(AI->getAllocatedType())) {
-        errs() << "NOT AN ARRAY NOR STRUCT\n";
         TryPromotelist.push_back(AI);
         return false;
     }
@@ -267,7 +256,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // If the size of array or vector is more than 5, abort mission.
     if(auto *SeqTy = dyn_cast<SequentialType>(AI->getAllocatedType())) {
         if(SeqTy->getNumElements() > 5) {
-            errs() << "ARRAY/VECTOR TOO BIG\n";
             return false;
         }
     }
@@ -275,7 +263,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // We can deal with small arrays, but not zero size.
     const DataLayout &DL = AI->getModule()->getDataLayout();
     if(!DL.getTypeAllocSize(AI->getAllocatedType())) {
-        errs() << "DATA LAYOUT ABORT\n";
         TryPromotelist.push_back(AI);
         return false;
     }
@@ -292,7 +279,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     // and use them separately.
     std::map<uint64_t, std::vector<GetElementPtrInst *>> OffsetsGEPsMap;
     ExtractOffsets(*AI, BitCastAlloca, OffsetsGEPsMap);
-    errs() << "OFFSETS EXTRACTED\n";
 
     // Deal with the alloca one offset at a time. Offsets that we do not
     // deal with here are useless anyway. So this pass is justified in 
@@ -309,7 +295,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
             errs() << "ARRAY OR VECTOR\n";
             AllocType = SeqAllocType->getElementType();
         } else {
-            errs() << "STRUCT TYPE\n";
             // Its composite type
             auto *CompAllocType = dyn_cast<CompositeType>(AI->getAllocatedType());
             assert(CompAllocType && "Alloca should be of conposite type.");
@@ -344,7 +329,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
                 GEP->replaceAllUsesWith(NewAlloca);
             }
         }
-        errs() << "OUT\n";
         // Add the new alloca to the worklist
         Worklist.push_back(NewAlloca);
     }
@@ -356,7 +340,6 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
     } else {
         TryPromotelist.push_back(AI);
     }
-    errs() << "OLD ALLOCA ERASED FROM PARENT\n";
     return true;
 }
 
@@ -374,27 +357,17 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
     bool Changed = false;
     SmallVector<AllocaInst *, 4> TempWorklist;
     do {
-        errs() << "PRINTING FUNCTION BEFORE ANALYSIS: \n";
-        F.print(errs());
         SmallVector<AllocaInst *, 4> TryPromotelist;
         while(!Worklist.empty()) 
             Changed |= AnalyzeAlloca(Worklist.pop_back_val(), TempWorklist, TryPromotelist);
-        errs() << "PRINTING FUNCTION AFTER ANALYSIS: \n";
-        F.print(errs());
         TryPromotelist.append(TempWorklist.begin(), TempWorklist.end());
         std::vector<AllocaInst *> AllocaList;
         for(auto *AI : TryPromotelist) {
             errs() << "TRY ALLOCA: " << *AI << "\n";
-            if(isPromotableAlloca(AI)) {
+            if(isPromotableAlloca(AI))
                 AllocaList.push_back(AI);
-                errs() << "YES\n";
-            } else {
-                errs() << "NOT\n";
-            }
         }
         Changed |= PromoteAllocas(AllocaList, F, DT, AC);
-        errs() << "PRINTING FUNCTION AFTER PROMOTION: \n";
-        F.print(errs());
         for(auto *AI : AllocaList) {
             auto It = find(TempWorklist, AI);
             if(It == TempWorklist.end())
