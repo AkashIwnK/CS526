@@ -344,7 +344,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
                 GEP->replaceAllUsesWith(NewAlloca);
             }
         }
-
+        errs() << "OUT\n";
         // Add the new alloca to the worklist
         Worklist.push_back(NewAlloca);
     }
