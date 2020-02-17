@@ -17,6 +17,11 @@ LL_FILES = $(SOURCES:%.c=%.ll)
 .PHONY = all
 
 all: $(LL_FILES)
+	opt -load SROA.so -scalarrepl-akashk4 -dce -verify alignment.ll -o done.ll
+	opt -load SROA.so -scalarrepl-akashk4 -dce -verify address-spaces.ll -o done.ll
+	opt -load SROA.so -scalarrepl-akashk4 -dce -verify basictest.ll -o done.ll
+	opt -load SROA.so -scalarrepl-akashk4 -dce -verify dead-inst.ll -o done.ll
+	opt -load SROA.so -scalarrepl-akashk4 -dce -verify fca.ll -o done.ll
 
 #LL_FILES: %.ll
 
