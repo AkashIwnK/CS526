@@ -321,7 +321,7 @@ static bool RunOnFunction(Function &F, DominatorTree &DT,
         F.print(errs());
         for(auto *AI : AllocaList) {
             auto It = find(TempWorklist, AI);
-            if(It == TempWorklist.end()) {
+            if(It == TempWorklist.end())
                 continue;
             TempWorklist.erase(It);
         }
