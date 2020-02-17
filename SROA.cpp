@@ -323,10 +323,10 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
             errs() << "CONSIDERED GEP: " << *GEP << "\n";
             auto *GEPTy = GEP->getPointerOperand()->getType();
             if(GEP->getPointerOperand() != AI) {
-                BitCast *BI = nullptr;
+                BitCastInst *BI = nullptr;
                 for(auto *BCI : BitCastVect) {
                     if(BCI->getType() == GEPTy) {
-                        GEP->replaceAllUsesWith(TypeToBitCastMap[BCI]);
+                        GEP->replaceAllUsesWith(BCI);
                         BI = BCI;
                         break;
                     }
@@ -334,7 +334,7 @@ static bool AnalyzeAlloca(AllocaInst *AI, SmallVector<AllocaInst *, 4> &Worklist
                 if(!BI) {
                     // Create a Bitcast right above old alloca
                      BI = new BitCastInst(NewAlloca, GEP->getType(), "", AI);
-                     GEP->replaceAllUsesWith(TypeToBitCastMap[BI]);
+                     GEP->replaceAllUsesWith(BI);
                 }
             } else {
                 GEP->replaceAllUsesWith(NewAlloca);
