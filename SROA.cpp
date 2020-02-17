@@ -235,7 +235,7 @@ static void ExtractOffsets(AllocaInst &AI, SmallVector<Instruction *, 4> &BitCas
         }
     }
     for(auto *BitCast : BitCastAlloca) {
-        for(const auto *U : BitCast) {
+        for(const auto *U : BitCast->users()) {
             if(const auto *GEP = dyn_cast<GetElementPtrInst>(U)) {
                 auto *Offset = cast<ConstantInt>(GEP->getOperand(2));
                 OffsetsGEPsMap[Offset->getZExtValue()].push_back(const_cast<GetElementPtrInst *>(GEP));
